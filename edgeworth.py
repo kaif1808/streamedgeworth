@@ -291,6 +291,42 @@ def solve_contract_curve(total_x, total_y, type_A, params_A, type_B, params_B, u
 
     return pareto_x, pareto_y, core_x, core_y
 
+def densify_curve_points(x_points, y_points, subdivisions=4, max_points=800):
+    """
+    Increase the plotted density of contract curve points by interpolating
+    between solved allocations without rerunning expensive optimizations.
+    """
+    if len(x_points) < 2 or subdivisions <= 1:
+        return x_points, y_points
+
+    dense_x, dense_y = [], []
+    remaining_budget = max_points
+
+    for idx in range(len(x_points) - 1):
+        x0, y0 = x_points[idx], y_points[idx]
+        x1, y1 = x_points[idx + 1], y_points[idx + 1]
+
+        dense_x.append(x0)
+        dense_y.append(y0)
+        remaining_budget -= 1
+        if remaining_budget <= 0:
+            break
+
+        for step in range(1, subdivisions):
+            t = step / subdivisions
+            dense_x.append(x0 + t * (x1 - x0))
+            dense_y.append(y0 + t * (y1 - y0))
+            remaining_budget -= 1
+            if remaining_budget <= 0:
+                break
+        if remaining_budget <= 0:
+            break
+    if remaining_budget > 0:
+        dense_x.append(x_points[-1])
+        dense_y.append(y_points[-1])
+
+    return dense_x, dense_y
+
 # --- Plotting Logic ---
 def get_theme_config(theme_name, dark_mode):
     if theme_name == "Modern Professional":
@@ -406,10 +442,13 @@ def plot_edgeworth_box(Z_A, Z_B, x_vec, y_vec, total_x, total_y,
                 ))
 
     # 4. Pareto Set & Core
-    p_mode = 'lines+markers' if settings.get("line_mode", False) else 'markers'
+    line_mode_enabled = settings.get("line_mode", False)
+    def curve_mode(points):
+        return 'lines' if line_mode_enabled and len(points) >= 2 else 'markers'
+
     if settings.get("show_pareto", True) and pareto_x:
         fig.add_trace(go.Scatter(
-            x=pareto_x, y=pareto_y, mode=p_mode, 
+            x=pareto_x, y=pareto_y, mode=curve_mode(pareto_x), 
             marker=dict(size=6, color=colors["Pareto"], line=dict(width=1, color="white")), 
             line=dict(width=4, color=colors["Pareto"]), name="Pareto Set",
             hovertemplate="Pareto<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>"
@@ -417,7 +456,7 @@ def plot_edgeworth_box(Z_A, Z_B, x_vec, y_vec, total_x, total_y,
 
     if settings.get("show_core", True) and core_x:
         fig.add_trace(go.Scatter(
-            x=core_x, y=core_y, mode=p_mode, 
+            x=core_x, y=core_y, mode=curve_mode(core_x), 
             marker=dict(size=9, color=colors["Core"], line=dict(width=1, color="white")), 
             line=dict(width=8, color=colors["Core"]), name="The Core",
             hovertemplate="Core<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>"
@@ -684,6 +723,8 @@ mrs_B = calculate_mrs(endow_B_x, endow_B_y, type_B, params_B)
 pareto_x, pareto_y, core_x, core_y = solve_contract_curve(
     total_x, total_y, type_A, params_A, type_B, params_B, uA_w, uB_w, np.min(Z_B), np.max(Z_B)
 )
+pareto_x, pareto_y = densify_curve_points(pareto_x, pareto_y, subdivisions=5)
+core_x, core_y = densify_curve_points(core_x, core_y, subdivisions=5)
 
 # Calculate Walrasian Equilibrium
 we_data = solve_walrasian_equilibrium(
