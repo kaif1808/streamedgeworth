@@ -126,6 +126,13 @@ def check_preference_curvature(u_type, params):
     except:
         return "PREFER_AVERAGES"
 
+def get_gradient(x, y, u_type, params):
+    h = 1e-5
+    u0 = utility_func(x, y, u_type, params)
+    ux = (utility_func(x + h, y, u_type, params) - u0) / h
+    uy = (utility_func(x, y + h, u_type, params) - u0) / h
+    return np.array([ux, uy])
+
 def calculate_mrs(x, y, u_type, params):
     h = 1e-5
     u0 = utility_func(x, y, u_type, params)
@@ -143,6 +150,17 @@ def verify_pareto_efficiency(xA, yA, total_x, total_y, type_A, params_A, type_B,
     
     # Interior
     if xA > 1e-3 and xA < total_x - 1e-3 and yA > 1e-3 and yA < total_y - 1e-3:
+        # Check gradient alignment (for satiation/thick curves)
+        grad_A = get_gradient(xA, yA, type_A, params_A)
+        grad_B = get_gradient(total_x - xA, total_y - yA, type_B, params_B)
+        
+        # Dot product of gradients (w.r.t own consumption)
+        # Efficient: D >= -1e-5 (Gradients point in roughly same quadrant, meaning in A's frame they are opposed)
+        # Inefficient: D < -1e-5 (Gradients point in opposite quadrants, meaning in A's frame they align)
+        dot_prod = np.dot(grad_A, grad_B)
+        if dot_prod < -1e-5:
+            return False
+
         if np.isinf(mrs_A) or np.isinf(mrs_B): return True
         return abs(mrs_A - mrs_B) < 0.2 # Looser tolerance for numerical stability
         
@@ -286,6 +304,9 @@ def solve_contract_curve(total_x, total_y, type_A, params_A, type_B, params_B, u
     levels_B = np.linspace(Z_B_min, Z_B_max, steps)
     last_x = [total_x / 2, total_y / 2] 
 
+    last_pareto_valid = False
+    last_core_valid = False
+
     for ub_val in levels_B:
         candidates = []
 
@@ -358,23 +379,31 @@ def solve_contract_curve(total_x, total_y, type_A, params_A, type_B, params_B, u
                     best_u = ua_val
                     best_p = [cx, cy]
 
+        current_pareto_valid = False
+        current_core_valid = False
+
         if best_p is not None:
             if verify_pareto_efficiency(best_p[0], best_p[1], total_x, total_y, type_A, params_A, type_B, params_B):
                 pareto_x.append(best_p[0])
                 pareto_y.append(best_p[1])
+                current_pareto_valid = True
+                
                 if best_u >= uA_w - 1e-3 and ub_real >= uB_w - 1e-3:
                     core_x.append(best_p[0])
                     core_y.append(best_p[1])
+                    current_core_valid = True
 
-    if pareto_x:
-        p_points = sorted(zip(pareto_x, pareto_y), key=lambda k: k[0])
-        pareto_x, pareto_y = zip(*p_points)
-        pareto_x, pareto_y = list(pareto_x), list(pareto_y)
+        # Handle gaps for Pareto
+        if not current_pareto_valid and last_pareto_valid:
+             pareto_x.append(None)
+             pareto_y.append(None)
+        last_pareto_valid = current_pareto_valid
 
-    if core_x:
-        c_points = sorted(zip(core_x, core_y), key=lambda k: k[0])
-        core_x, core_y = zip(*c_points)
-        core_x, core_y = list(core_x), list(core_y)
+        # Handle gaps for Core
+        if not current_core_valid and last_core_valid:
+             core_x.append(None)
+             core_y.append(None)
+        last_core_valid = current_core_valid
 
     return pareto_x, pareto_y, core_x, core_y
 
