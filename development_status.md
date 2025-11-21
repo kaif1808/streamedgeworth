@@ -1,6 +1,9 @@
 # Development Status
 
 ## 2025-11-21
+- **Feature**: Added "Indivisible Object (Discrete)" mode to the Edgeworth Box Simulator (`edgeworth.py`) to handle discrete allocation problems with quasi-linear utility.
+- **Feature**: Added new presets based on "PS8" and General Equilibrium Notes, including Convex Preferences, Satiation Points, and Min vs Max utility.
+- **Improvement**: Enhanced solver robustness for custom convex preferences (prefer extremes) by ensuring boundary solutions are checked.
 - **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
 
 ## 2025-11-20
