@@ -5,6 +5,7 @@
 - **Feature**: Added new presets based on "PS8" and General Equilibrium Notes, including Convex Preferences, Satiation Points, and Min vs Max utility.
 - **Improvement**: Enhanced solver robustness for custom convex preferences (prefer extremes) by ensuring boundary solutions are checked.
 - **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
+- **UX**: Increased contract-curve sampling density with adaptive solver steps and auto-hide markers when the "Connect Pareto Points" option draws full lines for cleaner visuals.
 
 ## 2025-11-20
 - **Feature**: Added support for custom LaTeX utility functions and expanded utility types (Cobb-Douglas, Perfect Substitutes, Complements, etc.) in the frontend.
