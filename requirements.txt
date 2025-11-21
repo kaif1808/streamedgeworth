@@ -1,0 +1,9 @@
+numpy
+scipy
+Flask
+simpleeval
+flask-cors
+streamlit  
+pandas
+plotly
+
