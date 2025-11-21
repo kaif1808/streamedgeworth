@@ -239,7 +239,10 @@ def solve_contract_curve(total_x, total_y, type_A, params_A, type_B, params_B, u
     pareto_x, pareto_y, core_x, core_y = [], [], [], []
     if Z_B_max <= Z_B_min: return pareto_x, pareto_y, core_x, core_y
 
-    steps = 50 # Increased precision
+    # Adaptive number of target utilities for Agent B: denser sampling for larger boxes,
+    # but capped to avoid unnecessary solver calls.
+    size_factor = max(total_x + total_y, 20)
+    steps = min(180, max(60, int(size_factor * 2)))
     levels_B = np.linspace(Z_B_min, Z_B_max, steps)
     last_x = [total_x / 2, total_y / 2] 
 
@@ -406,10 +409,13 @@ def plot_edgeworth_box(Z_A, Z_B, x_vec, y_vec, total_x, total_y,
                 ))
 
     # 4. Pareto Set & Core
-    p_mode = 'lines+markers' if settings.get("line_mode", False) else 'markers'
+    line_mode_enabled = settings.get("line_mode", False)
+    def curve_mode(points):
+        return 'lines' if line_mode_enabled and len(points) >= 2 else 'markers'
+
     if settings.get("show_pareto", True) and pareto_x:
         fig.add_trace(go.Scatter(
-            x=pareto_x, y=pareto_y, mode=p_mode, 
+            x=pareto_x, y=pareto_y, mode=curve_mode(pareto_x), 
             marker=dict(size=6, color=colors["Pareto"], line=dict(width=1, color="white")), 
             line=dict(width=4, color=colors["Pareto"]), name="Pareto Set",
             hovertemplate="Pareto<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>"
@@ -417,7 +423,7 @@ def plot_edgeworth_box(Z_A, Z_B, x_vec, y_vec, total_x, total_y,
 
     if settings.get("show_core", True) and core_x:
         fig.add_trace(go.Scatter(
-            x=core_x, y=core_y, mode=p_mode, 
+            x=core_x, y=core_y, mode=curve_mode(core_x), 
             marker=dict(size=9, color=colors["Core"], line=dict(width=1, color="white")), 
             line=dict(width=8, color=colors["Core"]), name="The Core",
             hovertemplate="Core<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>"
